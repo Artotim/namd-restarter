@@ -28,7 +28,7 @@ You can set the program to path or simply run it with `./namd_restart`
 	    -h, --help             Show help message and exit
 	    -c , --conf            Path to previous .conf file
 	    -f , --file-name       Set output files name
-	    -r , --run             Set run steps number (default is from last run)
+	    -r , --run             Set run steps number (default is get from last run)
 	    -a , --add-options     Additional options to include in .conf file (e.g., <margin 3>)
 	    -e , --namd-exe        Path to namd executable
 	    -N, --no-namd          Disable automatically running namd after end
