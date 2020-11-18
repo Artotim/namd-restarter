@@ -16,7 +16,7 @@ Then give it executable permissions:
 
 
 ## Usage  
-You can set the program to path or simply run it with `./namd_restart`  
+You can set the program to your path or simply run it with `./namd_restart`  
 
 	Basic usage: namd_restart -i <path/to/previous_run/> -o <path/to/restart_output/>
 
