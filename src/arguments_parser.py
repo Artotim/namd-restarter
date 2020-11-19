@@ -41,6 +41,8 @@ def make_parser():
                           help='Path to namd executable')
     optional.add_argument('-N', '--no-namd', action='store_false', dest='namd',
                           help='Disable automatically running namd after end')
+    optional.add_argument('-B', '--backup', action='store_true',
+                          help='Save backups for restart files while running namd')
     optional.add_argument('-t', '--threads', default=1, type=int, metavar='',
                           help='Number of cores to run namd when automatically running (default: 1)')
 

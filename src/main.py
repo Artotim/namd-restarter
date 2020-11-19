@@ -31,6 +31,7 @@ class DynamicRestart:
 
     def __init__(self, **kwargs):
         self.conf = kwargs['conf']
+        self.backup = kwargs['backup']
         self.namd = kwargs['namd']
         self.namd_exe = kwargs['namd_exe']
         self.options = kwargs['options']
@@ -57,7 +58,7 @@ class DynamicRestart:
         sleep(1)
 
         # Prepares restart files
-        restart_files = self.search_previous()
+        restart_files = self.search_previous(self.previous)
         if not restart_files:
             return False
         sleep(1)
@@ -111,27 +112,31 @@ class DynamicRestart:
         else:
             return output[0].decode('utf-8').strip()
 
-    def search_previous(self):
+    def search_previous(self, path, silent=False):
         """Search restart files on previous folder"""
 
-        log('info', 'Searching restart files.')
+        if not silent:
+            log('info', 'Searching restart files.')
 
-        cmd = 'find ' + self.previous + ' -name "*restart*" -exec du -sh {} \\;'
+        cmd = 'find ' + path + ' -name "*restart*" -exec du -sh {} \\;'
         output = subprocess.Popen(cmd, stdout=subprocess.PIPE, shell=True)
 
-        return self.resolve_restart(output)
+        return self.resolve_restart(output, silent)
 
-    def resolve_restart(self, files):
+    def resolve_restart(self, files, silent):
         """Check for size on restart files"""
 
         files = files.stdout.readlines()
         if len(files) == 0:
-            log('critical', 'Restart files not found. Aborting!')
+            if not silent:
+                log('critical', 'Restart files not found. Aborting!')
             return False
 
         files_size = dict()
         new_restart = list()
         old_restart = list()
+        backup_restart = list()
+
         for file in files:
             file = file.decode('utf-8').strip().split('\t')
 
@@ -142,32 +147,47 @@ class DynamicRestart:
                 new_restart.append(file_name)
             if file_name.endswith(".old"):
                 old_restart.append(file_name)
+            if file_name.endswith(".bak"):
+                backup_restart.append(file_name)
 
-        return self.choose_restart(files_size, new_restart, old_restart)
+        return self.choose_restart(files_size, new_restart, old_restart, backup_restart, silent)
 
-    def choose_restart(self, files_dic, new, old):
+    def choose_restart(self, files_dic, new, old, back, silent):
         """Choose restart files not empty"""
+
         if len(new) >= 3:
             for file in new:
                 if files_dic[file] == '0':
                     break
                 else:
-                    return self.annotate_restart(new)
+                    return self.annotate_restart(new, silent)
 
         if len(old) >= 3:
             for file in old:
                 if files_dic[file] == '0':
                     break
                 else:
-                    log('warning', 'Restart files empty or missing, using old restart files.')
+                    if not silent:
+                        log('warning', 'Restart files empty or missing, using old restart files.')
                     sleep(1)
-                    return 'old', self.annotate_restart(old)
+                    return self.annotate_restart(old, silent)
 
-        log('critical', 'Restart files empty or missing. Aborting!')
+        if len(back) >= 3:
+            for file in back:
+                if files_dic[file] == '0':
+                    break
+                else:
+                    if not silent:
+                        log('warning', 'Restart files empty or missing, using backup restart files.')
+                    sleep(1)
+                    return self.annotate_restart(back, silent)
+
+        if not silent:
+            log('critical', 'Restart files empty or missing. Aborting!')
         return False
 
     @staticmethod
-    def annotate_restart(file_list):
+    def annotate_restart(file_list, silent):
         """Create dict with restart files"""
 
         annotated_files = dict()
@@ -179,10 +199,12 @@ class DynamicRestart:
             elif '.restart.vel' in file:
                 annotated_files['vel'] = file
             else:
-                log('error', 'Missing restart file.')
+                if not silent:
+                    log('error', 'Missing restart file.')
                 return False
 
-        log('info', 'Restart files ready.')
+        if not silent:
+            log('info', 'Restart files ready.')
         return annotated_files
 
     @staticmethod
@@ -339,10 +361,35 @@ class DynamicRestart:
         try:
             with open(log_file, 'w') as out, open(err_file, "w") as err:
                 process = subprocess.Popen(cmd, stdout=out, stderr=err)
-                process.wait()
-                log('info', 'Dynamic finished.')
+
+                while process.poll() is None:
+                    if self.backup:
+                        self.backup_restart()
+                    sleep(300)
+
+                else:
+                    log('info', 'Dynamic finished.')
+
         except PermissionError:
             log('error', 'Namd exe not found! Please specify path with -e.')
+
+    def backup_restart(self):
+        """Create backups file for restarting"""
+
+        import shutil
+
+        restart_files = self.search_previous(self.restart, silent=True)
+        if not restart_files or restart_files['xsc'].endswith('bak'):
+            sleep(2)
+            return self.backup_restart()
+
+        for file in restart_files:
+            if restart_files[file].endswith('old'):
+                new_file = restart_files[file].replace('old', 'bak')
+            else:
+                new_file = restart_files[file] + '.bak'
+
+            shutil.copy(restart_files[file], new_file)
 
 
 if __name__ == '__main__':
