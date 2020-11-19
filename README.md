@@ -32,6 +32,6 @@ You can set the program to your path or simply run it with `./namd_restart`
 	    -a , --add-options     Additional options to include in .conf file (e.g., <margin 3>)
 	    -e , --namd-exe        Path to namd executable
 	    -N, --no-namd          Disable automatically running namd after end
-            -B, --backup           Save backups for restart files while running namd
+	    -B, --backup           Save backups for restart files while running namd
 	    -t , --threads         Number of cores to run namd when automatically running (default: 1)
                        
