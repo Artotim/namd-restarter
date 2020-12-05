@@ -1,7 +1,7 @@
 # Namd Restarter
 Created by Artotim.   
 
-Namd restarter is a program to automatically restart a previous NAMD dynamic run. It follows the instructions on [this post](https://www.ks.uiuc.edu/Research/namd/mailing_list/namd-l.2007-2008/1211.html) to restart/continue from an old .conf along with the files from the last run.  
+Namd restarter is a program to automatically restart a previous NAMD dynamic run. It follows the instructions on [this post](https://www.ks.uiuc.edu/Research/namd/mailing_list/namd-l.2007-2008/1211.html) to restart/continue from an old `.conf` along with the files from the last run.  
 
 This program is licensed under the [GPL-3.0 License](https://github.com/Artotim/namd-restarter/blob/main/LICENSE).
 
