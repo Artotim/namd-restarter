@@ -18,12 +18,10 @@
     Mail: arthurpfonseca3k@gmail.com
 """
 
-
 from arguments_parser import make_parser
-from color_log import log
-import subprocess
+from prepare_dynamic import *
+from resolve_restart import *
 import os
-from time import sleep
 
 
 class DynamicRestart:
@@ -35,8 +33,8 @@ class DynamicRestart:
         self.namd = kwargs['namd']
         self.namd_exe = kwargs['namd_exe']
         self.options = kwargs['options']
-        self.previous = kwargs['previous']
-        self.restart = kwargs['restart']
+        self.previous = os.path.abspath(kwargs['previous']) + '/'
+        self.restart = os.path.abspath(kwargs['restart']) + '/'
         self.run = kwargs['run']
         self.cores = kwargs['threads']
         self.file_name = kwargs['file_name']
@@ -58,7 +56,7 @@ class DynamicRestart:
         sleep(1)
 
         # Prepares restart files
-        restart_files = self.search_previous(self.previous)
+        restart_files = search_previous(self.previous)
         if not restart_files:
             return False
         sleep(1)
@@ -70,8 +68,8 @@ class DynamicRestart:
             return False
         sleep(1)
 
-        # Gets last stp
-        restart_step = self.get_restart_step(restart_files)
+        # Gets last step
+        restart_step = get_restart_step(restart_files)
         if not restart_step:
             return False
         sleep(1)
@@ -85,7 +83,6 @@ class DynamicRestart:
         sleep(1)
 
         # Edit optional arguments on conf file
-        self.edit_run_steps()
         self.configure_optional()
         self.save_conf()
         sleep(1)
@@ -112,116 +109,6 @@ class DynamicRestart:
         else:
             return output[0].decode('utf-8').strip()
 
-    def search_previous(self, path, silent=False):
-        """Search restart files on previous folder"""
-
-        if not silent:
-            log('info', 'Searching restart files.')
-
-        cmd = 'find ' + path + ' -name "*restart*" -exec du -sh {} \\;'
-        output = subprocess.Popen(cmd, stdout=subprocess.PIPE, shell=True)
-
-        return self.resolve_restart(output, silent)
-
-    def resolve_restart(self, files, silent):
-        """Check for size on restart files"""
-
-        files = files.stdout.readlines()
-        if len(files) == 0:
-            if not silent:
-                log('critical', 'Restart files not found. Aborting!')
-            return False
-
-        files_size = dict()
-        new_restart = list()
-        old_restart = list()
-        backup_restart = list()
-
-        for file in files:
-            file = file.decode('utf-8').strip().split('\t')
-
-            file_name = file[1]
-            files_size[file_name] = file[0]
-
-            if file_name.endswith(".xsc") or file_name.endswith(".coor") or file_name.endswith(".vel"):
-                new_restart.append(file_name)
-            if file_name.endswith(".old"):
-                old_restart.append(file_name)
-            if file_name.endswith(".bak"):
-                backup_restart.append(file_name)
-
-        return self.choose_restart(files_size, new_restart, old_restart, backup_restart, silent)
-
-    def choose_restart(self, files_dic, new, old, back, silent):
-        """Choose restart files not empty"""
-
-        if len(new) >= 3:
-            for file in new:
-                if files_dic[file] == '0':
-                    break
-                else:
-                    return self.annotate_restart(new, silent)
-
-        if len(old) >= 3:
-            for file in old:
-                if files_dic[file] == '0':
-                    break
-                else:
-                    if not silent:
-                        log('warning', 'Restart files empty or missing, using old restart files.')
-                    sleep(1)
-                    return self.annotate_restart(old, silent)
-
-        if len(back) >= 3:
-            for file in back:
-                if files_dic[file] == '0':
-                    break
-                else:
-                    if not silent:
-                        log('warning', 'Restart files empty or missing, using backup restart files.')
-                    sleep(1)
-                    return self.annotate_restart(back, silent)
-
-        if not silent:
-            log('critical', 'Restart files empty or missing. Aborting!')
-        return False
-
-    @staticmethod
-    def annotate_restart(file_list, silent):
-        """Create dict with restart files"""
-
-        annotated_files = dict()
-        for file in file_list:
-            if '.restart.xsc' in file:
-                annotated_files['xsc'] = file
-            elif '.restart.coor' in file:
-                annotated_files['coor'] = file
-            elif '.restart.vel' in file:
-                annotated_files['vel'] = file
-            else:
-                if not silent:
-                    log('error', 'Missing restart file.')
-                return False
-
-        if not silent:
-            log('info', 'Restart files ready.')
-        return annotated_files
-
-    @staticmethod
-    def get_restart_step(restart_files):
-        """Get last step on xsc file"""
-
-        with open(restart_files['xsc']) as xsc:
-            step = xsc.readlines()
-
-            if len(step) == 0:
-                log('error', 'Could not open .xsc file.')
-                return False
-
-            step = step[2].split(' ')[0]
-            log('info', 'Using restart step ' + step + '.')
-            return step
-
     def read_conf(self):
         """Read conf file to list"""
 
@@ -244,9 +131,6 @@ class DynamicRestart:
 
     def prepare_restart(self):
         """Check if output folder exists and is empty"""
-
-        if not self.restart.endswith('/'):
-            self.restart = self.restart + '/'
 
         if not os.path.exists(self.restart):
             os.makedirs(self.restart)
@@ -276,6 +160,8 @@ class DynamicRestart:
         for option in restart_comment:
             self.comment_conf(option)
 
+        self.edit_run_steps(restart_step)
+
     def search_option(self, option):
         """Search an option index on conf file"""
 
@@ -284,15 +170,6 @@ class DynamicRestart:
                 return self.conf_file.index(line)
         return False
 
-    @staticmethod
-    def format_option(option):
-        """Format options to separe argument and value"""
-
-        option = option.split()
-        if option[0].lower() == 'set':
-            option = [option[0] + ' ' + option[1], *option[2:]]
-        return option
-
     def update_conf(self, option, base_index=0):
         """Edit conf file to include/uncomment option"""
 
@@ -300,7 +177,7 @@ class DynamicRestart:
         if base_index == 1:
             base_index = len(self.conf_file) - 1
 
-        option = self.format_option(option)
+        option = format_option(option)
 
         option_index = self.search_option(option[0])
         if option_index:
@@ -311,7 +188,7 @@ class DynamicRestart:
     def comment_conf(self, option):
         """Edit conf file to comment option"""
 
-        option = self.format_option(option)
+        option = format_option(option)
 
         option_index = self.search_option(option[0])
         if option_index:
@@ -321,12 +198,23 @@ class DynamicRestart:
             log('warning', 'Option "' + ' '.join(option) + '" not found. Ignoring.')
             sleep(1)
 
-    def edit_run_steps(self):
+    def edit_run_steps(self, restart_step):
         """Edit the number of run steps"""
 
         if self.run:
             log('info', 'Setting run steps to ' + self.run + '.')
             self.update_conf('run ' + self.run)
+        else:
+            steps = self.get_remaining_steps(restart_step)
+            self.update_conf('run ' + steps)
+
+    def get_remaining_steps(self, restart_step):
+        """Get number of remaining steps to complete dynamic"""
+
+        line = self.conf_file[self.search_option('run')]
+        previous_step = line.strip().split()[1]
+
+        return str(int(previous_step) - int(restart_step))
 
     def configure_optional(self):
         """Make additional edits on conf file"""
@@ -368,28 +256,23 @@ class DynamicRestart:
                     sleep(300)
 
                 else:
-                    log('info', 'Dynamic finished.')
+                    finish_dynamic(err_file)
 
         except PermissionError:
             log('error', 'Namd exe not found! Please specify path with -e.')
 
     def backup_restart(self):
-        """Create backups file for restarting"""
+        """Checks to create backups file for restarting"""
 
-        import shutil
-
-        restart_files = self.search_previous(self.restart, silent=True)
+        restart_files = search_previous(self.restart, silent=True)
         if not restart_files or restart_files['xsc'].endswith('bak'):
-            sleep(2)
-            return self.backup_restart()
+            return
 
         for file in restart_files:
-            if restart_files[file].endswith('old'):
-                new_file = restart_files[file].replace('old', 'bak')
-            else:
-                new_file = restart_files[file] + '.bak'
-
-            shutil.copy(restart_files[file], new_file)
+            try:
+                write_backup(restart_files[file])
+            except FileNotFoundError:
+                break
 
 
 if __name__ == '__main__':
