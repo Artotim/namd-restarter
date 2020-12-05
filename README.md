@@ -35,3 +35,6 @@ You can set the program to your path or simply run it with `./namd_restart`
 	    -B, --backup           Save backups for restart files while running namd
 	    -t , --threads         Number of cores to run namd when automatically running (default: 1)
                        
+### Disclaimer
+This product comes with no warranty whatsoever.  
+This product its not an official NAMD release or have any affiliation to it.
