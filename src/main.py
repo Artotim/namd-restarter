@@ -154,13 +154,13 @@ class DynamicRestart:
         coord_index = self.conf_file.index([line for line in self.conf_file if 'coordinates' in line][0]) + 1
         self.conf_file.insert(coord_index, '\n')
 
+        self.edit_run_steps(restart_step)
+
         for option in restart_insert:
             self.update_conf(option, coord_index)
 
         for option in restart_comment:
             self.comment_conf(option)
-
-        self.edit_run_steps(restart_step)
 
     def search_option(self, option):
         """Search an option index on conf file"""
@@ -211,10 +211,16 @@ class DynamicRestart:
     def get_remaining_steps(self, restart_step):
         """Get number of remaining steps to complete dynamic"""
 
-        line = self.conf_file[self.search_option('run')]
-        previous_step = line.strip().split()[1]
+        previous_line = self.conf_file[self.search_option('run')]
+        previous_step = previous_line.strip().split()[1]
 
-        return str(int(previous_step) - int(restart_step))
+        previous_first_line = self.conf_file[self.search_option('firsttimestep')]
+        previous_first_step = previous_first_line.strip().split()[1] if previous_first_line else 0
+
+        next_time_step = (int(restart_step) - int(previous_first_step)) - int(previous_step)
+        next_time_step = next_time_step if next_time_step != 0 else restart_step
+
+        return str(next_time_step)
 
     def configure_optional(self):
         """Make additional edits on conf file"""
@@ -241,7 +247,7 @@ class DynamicRestart:
         log_file = self.restart + self.file_name + '.log'
         err_file = self.restart + self.file_name + '.err'
 
-        cmd = [self.namd_exe, conf_file, '>', log_file]
+        cmd = [self.namd_exe, conf_file]
 
         if self.cores != 1:
             cmd.insert(1, '+p' + str(self.cores))
