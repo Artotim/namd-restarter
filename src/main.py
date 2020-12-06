@@ -101,6 +101,7 @@ class DynamicRestart:
                 return self.conf
             else:
                 log('error', 'Please provide a valid .conf file.')
+                return False
 
         log('info', 'Searching conf file.')
         cmd = 'find ' + self.previous + ' -name "*conf"'
@@ -209,6 +210,8 @@ class DynamicRestart:
             self.update_conf('run ' + self.run)
         else:
             steps = self.get_remaining_steps(restart_step)
+
+            log('info', 'Setting run steps to ' + steps + '.')
             self.update_conf('run ' + steps)
 
     def get_remaining_steps(self, restart_step):
@@ -217,10 +220,7 @@ class DynamicRestart:
         previous_line = self.conf_file[self.search_option('run')]
         previous_step = previous_line.strip().split()[1]
 
-        previous_first_line = self.conf_file[self.search_option('firsttimestep')]
-        previous_first_step = previous_first_line.strip().split()[1] if previous_first_line else 0
-
-        next_time_step = (int(restart_step) - int(previous_first_step)) - int(previous_step)
+        next_time_step = int(previous_step) - int(restart_step)
         next_time_step = next_time_step if next_time_step != 0 else restart_step
 
         return str(next_time_step)
