@@ -97,7 +97,10 @@ class DynamicRestart:
         """Search conf files archive"""
 
         if self.conf is not None:
-            return self.conf
+            if self.conf.endswith('.conf'):
+                return self.conf
+            else:
+                log('error', 'Please provide a valid .conf file.')
 
         log('info', 'Searching conf file.')
         cmd = 'find ' + self.previous + ' -name "*conf"'
@@ -151,7 +154,7 @@ class DynamicRestart:
                           'firsttimestep ' + restart_step]
         restart_comment = ['temperature', 'minimize', 'reinitvels']
 
-        coord_index = self.conf_file.index([line for line in self.conf_file if 'coordinates' in line][0]) + 1
+        coord_index = self.search_option('coordinates') + 1
         self.conf_file.insert(coord_index, '\n')
 
         self.edit_run_steps(restart_step)
