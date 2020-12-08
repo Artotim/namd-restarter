@@ -19,9 +19,12 @@
 """
 
 from arguments_parser import make_parser
-from prepare_dynamic import *
-from resolve_restart import *
+from prepare_dynamic import format_option, finish_dynamic, write_backup
+from resolve_restart import search_previous, get_restart_step
+from color_log import log
 import os
+from time import sleep
+import subprocess
 
 
 class DynamicRestart:
