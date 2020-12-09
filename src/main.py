@@ -270,7 +270,7 @@ class DynamicRestart:
                 else:
                     finish_dynamic(err_file)
 
-        except PermissionError:
+        except (PermissionError, FileNotFoundError):
             log('error', 'Namd exe not found! Please specify path with -e.')
 
     def backup_restart(self):
