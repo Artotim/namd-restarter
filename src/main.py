@@ -223,7 +223,14 @@ class DynamicRestart:
         previous_line = self.conf_file[self.search_option('run')]
         previous_step = previous_line.strip().split()[1]
 
-        next_time_step = int(previous_step) - int(restart_step)
+        firsttime_line_index = self.search_option('firsttimestep')
+        if firsttime_line_index:
+            firsttime_line = self.conf_file[firsttime_line_index]
+            first_step = firsttime_line.strip().split()[1]
+        else:
+            first_step = 0
+
+        next_time_step = int(previous_step) - (int(restart_step) - int(first_step))
         next_time_step = next_time_step if next_time_step != 0 else restart_step
 
         return str(next_time_step)
