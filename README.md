@@ -37,4 +37,4 @@ You can set the program to your path or simply run it with `./namd_restart`
                        
 ### Disclaimer
 This product comes with no warranty whatsoever.  
-This product is not an official NAMD release or have any affiliation to it.
+This product is not an official NAMD release or has any affiliation to it.
